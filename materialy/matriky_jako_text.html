@@ -1,0 +1,846 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<title>Matriky@home: návrh spolupráce pro SOA v Třeboni</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Tiskový dokument A4. Paleta jihočeských rybníků: hluboká voda, hladina, rákos. */
+:root {
+  --pond: #113a44;
+  --pond-2: #0c2c34;
+  --water: #2c7a86;
+  --water-soft: #dcecee;
+  --reed: #a97a1f;
+  --reed-soft: #f3e9d2;
+  --paper: #f7f8f6;
+  --card: #ffffff;
+  --ink: #17232a;
+  --muted: #586770;
+  --rule: #d6dddb;
+  --f-display: "Bricolage Grotesque", "Segoe UI", sans-serif;
+  --f-body: "Literata", Georgia, serif;
+  --f-mono: "IBM Plex Mono", Consolas, monospace;
+}
+@page { size: A4; margin: 0; }
+* { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+html, body { margin: 0; padding: 0; background: #888; }
+body { font-family: var(--f-body); color: var(--ink); font-size: 10.6pt; line-height: 1.5; }
+.page {
+  width: 210mm; height: 297mm; overflow: hidden; position: relative;
+  background: var(--paper); page-break-after: always; break-after: page;
+  padding: 20mm 18mm 18mm; display: flex; flex-direction: column; gap: 6mm;
+  margin: 0 auto;
+}
+.page:last-child { page-break-after: auto; break-after: auto; }
+@media screen { .page { margin: 10mm auto; box-shadow: 0 2px 12px rgba(0,0,0,.25); } }
+h1, h2, h3 { font-family: var(--f-display); margin: 0; line-height: 1.12; text-wrap: balance; }
+h2 { font-size: 25pt; font-weight: 800; letter-spacing: -0.015em; color: var(--pond); }
+h3 { font-size: 12.5pt; font-weight: 700; }
+p { margin: 0; }
+.eyebrow { font-family: var(--f-mono); font-size: 8pt; letter-spacing: .14em; text-transform: uppercase; color: var(--water); }
+.lead { font-size: 12.2pt; line-height: 1.5; max-width: 158mm; }
+.muted { color: var(--muted); }
+.folio {
+  position: absolute; left: 18mm; right: 18mm; bottom: 9mm; display: flex; justify-content: space-between;
+  font-family: var(--f-mono); font-size: 7.5pt; color: var(--muted); letter-spacing: .05em;
+  border-top: 1px solid var(--rule); padding-top: 2.5mm;
+}
+.head { display: grid; gap: 3mm; }
+.page.roomy { gap: 9mm; }
+.page.roomy > .end { margin-top: auto; margin-bottom: 8mm; }
+
+/* Titulní strana */
+.cover { background: var(--pond); color: #eef4f3; padding: 0; gap: 0; }
+.cover .top { padding: 22mm 18mm 0; display: grid; gap: 7mm; }
+.cover .eyebrow { color: #9fd0d6; }
+.cover h1 { font-size: 56pt; font-weight: 800; letter-spacing: -0.03em; color: #ffffff; }
+.cover h1 span { color: #e3b75a; }
+.cover .kicker { font-family: var(--f-display); font-weight: 700; font-size: 22pt; color: #ffffff; margin-top: -3mm; }
+.cover .lead { color: #d7e6e5; font-size: 14pt; max-width: 150mm; }
+.cover .visual { flex: 1; display: flex; align-items: center; justify-content: center; padding: 6mm 18mm; }
+.cover .visual svg { width: 100%; height: auto; }
+.cover .bottom {
+  background: var(--pond-2); padding: 9mm 18mm 11mm; display: grid; grid-template-columns: 1fr 1fr; gap: 6mm;
+  font-size: 9.5pt; color: #c9dad9;
+}
+.cover .bottom b { display: block; font-family: var(--f-display); color: #ffffff; font-size: 11pt; margin-bottom: 1mm; }
+
+/* Karty a mřížky */
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; }
+.grid3 { display: grid; grid-template-columns: 1.25fr 1fr 1fr; gap: 4.5mm; align-items: start; }
+.card { background: var(--card); border: 1px solid var(--rule); border-radius: 2.5mm; padding: 5mm; display: grid; gap: 2mm; align-content: start; }
+.card p { font-size: 10pt; }
+.card .k { font-family: var(--f-mono); font-size: 7.5pt; letter-spacing: .1em; text-transform: uppercase; color: var(--reed); }
+.note {
+  background: var(--water-soft); border-left: 1.2mm solid var(--water); padding: 4.5mm 5mm; border-radius: 0 2mm 2mm 0;
+  display: grid; gap: 1.5mm;
+}
+.note h3 { color: var(--pond); }
+.note p { font-size: 10.2pt; }
+.big {
+  background: var(--pond); color: #eef4f3; border-radius: 2.5mm; padding: 7mm 7mm; display: grid; gap: 2.5mm;
+}
+.big h3 { font-size: 19pt; color: #ffffff; font-weight: 800; letter-spacing: -0.01em; }
+.big p { font-size: 11pt; color: #d7e6e5; }
+.big b { color: #e3b75a; font-weight: 600; }
+
+/* Postup */
+.flow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; position: relative; }
+.flow .step { padding: 0 4mm 0 0; display: grid; gap: 2mm; align-content: start; position: relative; }
+.flow .step::after { content: ""; position: absolute; top: 4.5mm; left: 11mm; right: 2mm; height: .35mm; background: var(--water); opacity: .45; }
+.flow .step:last-child::after { display: none; }
+.badge {
+  width: 9mm; height: 9mm; border-radius: 50%; background: var(--water); color: #fff; position: relative; z-index: 1;
+  display: grid; place-items: center; font-family: var(--f-mono); font-weight: 500; font-size: 10pt;
+}
+.flow .who { font-family: var(--f-mono); font-size: 7.5pt; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.flow p { font-size: 9.8pt; }
+
+.compare { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; }
+.compare .card { gap: 3mm; }
+.dots { display: grid; grid-template-columns: repeat(20, 1fr); gap: .9mm; }
+.dots i { aspect-ratio: 1; border-radius: .4mm; background: var(--reed); }
+.dots.few i { background: var(--rule); }
+.dots.few i.on { background: var(--water); }
+.tag { font-family: var(--f-mono); font-size: 8pt; letter-spacing: .1em; text-transform: uppercase; }
+.tag.today { color: var(--reed); }
+.tag.hub { color: var(--water); }
+
+/* Technika */
+.seq svg { width: 100%; height: auto; display: block; }
+.seq text.m { paint-order: stroke; stroke: #f7f8f6; stroke-width: 6px; stroke-linejoin: round; }
+.json2 { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; }
+.json2 pre { font-size: 7.3pt; line-height: 1.45; padding: 3mm 3.6mm; }
+.json2 .cap { font-family: var(--f-mono); font-size: 7pt; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 1.2mm; display: block; }
+.page.tech { gap: 4.5mm; }
+
+.flowc svg { width: 100%; height: auto; display: block; }
+.trio { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; }
+.trio .card p { font-size: 9.4pt; }
+
+.src2 { display: grid; grid-template-columns: 1.15fr 1fr; gap: 4.5mm; align-items: start; }
+.src2 .card { gap: 2.4mm; }
+.src2 .card.main { border: .5mm solid var(--water); }
+.src2 .pill { justify-self: start; font-family: var(--f-mono); font-size: 7pt; letter-spacing: .1em; text-transform: uppercase; background: var(--water); color: #fff; padding: 1mm 2.6mm; border-radius: 10mm; }
+.src2 .list li { font-size: 9.6pt; }
+.src2 .for { font-size: 9.4pt; color: var(--muted); border-top: .3mm solid var(--rule); padding-top: 2mm; }
+.srcflow svg { width: 100%; height: auto; display: block; }
+
+.lanes svg { width: 100%; height: auto; display: block; }
+.sig .flow p { font-size: 9.4pt; }
+.alt { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; }
+.alt .card p { font-size: 9.4pt; }
+
+/* Přínosy */
+.bcol { background: var(--card); border: 1px solid var(--rule); border-radius: 2.5mm; padding: 5mm; display: grid; gap: 3mm; }
+.bcol.arch { border-top: 1.4mm solid var(--water); }
+.bcol.gen { border-top: 1.4mm solid var(--reed); }
+.bcol.pub { border-top: 1.4mm solid #4f7d4a; }
+.bcol ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 2.6mm; }
+.bcol li { font-size: 9.6pt; line-height: 1.42; }
+.bcol li b { display: block; font-family: var(--f-display); font-size: 10.4pt; font-weight: 700; color: var(--ink); }
+.bcol h3 .sub { display: block; font-family: var(--f-mono); font-size: 7.5pt; font-weight: 400; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-top: 1mm; }
+
+/* Seznamy ano/ne */
+.list { margin: 0; padding: 0; list-style: none; display: grid; gap: 2.4mm; }
+.list li { font-size: 10pt; padding-left: 6mm; position: relative; }
+.list.yes li::before { content: "✓"; position: absolute; left: 0; color: var(--water); font-weight: 700; }
+.list.no li::before { content: "✕"; position: absolute; left: 0; color: var(--reed); font-weight: 700; }
+.variant { display: grid; gap: 2mm; }
+.variant .letter { font-family: var(--f-display); font-weight: 800; font-size: 22pt; color: var(--water); line-height: 1; }
+
+/* Hostování */
+.host { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; align-items: stretch; }
+.host .card { gap: 2.4mm; border-top: 1.4mm solid var(--water); }
+.host .num { font-family: var(--f-display); font-weight: 800; font-size: 20pt; color: var(--water); line-height: 1; }
+.host .lbl { font-family: var(--f-mono); font-size: 7pt; letter-spacing: .1em; text-transform: uppercase; color: var(--reed); margin-top: 1mm; }
+.host p { font-size: 9.3pt; line-height: 1.42; }
+table.cmp { width: 100%; border-collapse: collapse; background: var(--card); border: 1px solid var(--rule); border-radius: 2mm; font-size: 9pt; }
+table.cmp th, table.cmp td { text-align: left; vertical-align: top; padding: 2.2mm 3mm; border-bottom: 1px solid var(--rule); }
+table.cmp th { font-family: var(--f-mono); font-size: 7pt; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+table.cmp td:first-child { font-family: var(--f-display); font-weight: 700; width: 30%; }
+table.cmp tr:last-child td { border-bottom: 0; }
+.ask { background: var(--pond); color: #eef4f3; border-radius: 2.5mm; padding: 6mm 7mm; display: grid; gap: 2mm; }
+.ask h3 { color: #fff; font-size: 15pt; font-weight: 800; }
+.ask p { font-size: 10.2pt; color: #d7e6e5; }
+.ask b { color: #e3b75a; font-weight: 600; }
+
+.page.tight { gap: 4.5mm; }
+.page.tight .host .card { padding: 4mm; gap: 1.6mm; }
+.page.tight .host p { font-size: 8.9pt; line-height: 1.36; }
+.page.tight .host h3 { font-size: 11.5pt; }
+.page.tight table.cmp { font-size: 8.5pt; }
+.page.tight table.cmp th, .page.tight table.cmp td { padding: 1.5mm 2.6mm; }
+.page.tight .ask { padding: 5mm 6mm; }
+.page.tight .ask p { font-size: 9.8pt; }
+
+/* Kvalita */
+.levels { display: flex; flex-wrap: wrap; align-items: center; gap: 2mm; }
+.lvl { font-family: var(--f-mono); font-size: 8.6pt; padding: 1.6mm 3.4mm; border-radius: 10mm; border: .3mm solid var(--rule); background: var(--card); }
+.lvl.l1 { border-color: var(--reed); color: #7d5a14; background: var(--reed-soft); }
+.lvl.l2 { border-color: var(--water); color: var(--pond); background: var(--water-soft); }
+.lvl.l3 { border-color: #4f7d4a; color: #33582f; background: #e2eedf; }
+.lvl.l4 { border-color: #33582f; color: #fff; background: #4f7d4a; }
+.arrow { font-family: var(--f-mono); color: var(--muted); }
+.checks { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm 6mm; }
+.checks div { border-top: .3mm solid var(--rule); padding-top: 2.5mm; display: grid; gap: 1mm; }
+.checks b { font-family: var(--f-display); font-size: 10.6pt; }
+.checks p { font-size: 9.8pt; }
+pre {
+  margin: 0; background: var(--card); border: 1px solid var(--rule); border-radius: 2mm; padding: 4mm 5mm;
+  font-family: var(--f-mono); font-size: 8.4pt; line-height: 1.55; white-space: pre-wrap;
+}
+pre .c { color: var(--muted); }
+pre .s { color: var(--water); }
+
+/* Pilot */
+.phases { display: grid; gap: 0; border-left: .5mm solid var(--rule); margin-left: 3mm; }
+.phase { position: relative; padding: 0 0 5mm 8mm; display: grid; gap: 1mm; }
+.phase::before { content: ""; position: absolute; left: -2.6mm; top: 1mm; width: 4.2mm; height: 4.2mm; border-radius: 50%; background: var(--paper); border: .6mm solid var(--water); }
+.phase .when { font-family: var(--f-mono); font-size: 7.5pt; letter-spacing: .1em; text-transform: uppercase; color: var(--water); }
+.phase p { font-size: 10pt; }
+.partners { display: grid; grid-template-columns: 1fr 1fr; gap: 3mm 5mm; }
+.partners div { display: grid; gap: .6mm; }
+.partners b { font-family: var(--f-display); font-size: 10.4pt; }
+.partners span { font-size: 9.4pt; color: var(--muted); }
+
+/* Závěr */
+.offer { background: var(--pond); color: #eef4f3; border-radius: 2.5mm; padding: 8mm; display: grid; gap: 4mm; }
+.offer h3 { color: #fff; font-size: 17pt; font-weight: 800; }
+.offer p { font-size: 11pt; color: #d7e6e5; }
+.contact { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; }
+.contact .card b { font-family: var(--f-display); font-size: 12pt; }
+.mono { font-family: var(--f-mono); font-size: 9pt; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; }
+.stat { border-top: .5mm solid var(--water); padding-top: 2.5mm; display: grid; gap: .5mm; }
+.stat .n { font-family: var(--f-display); font-size: 22pt; font-weight: 800; color: var(--pond); line-height: 1; }
+.stat .t { font-size: 9.2pt; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<!-- 1. Titulní strana -->
+<section class="page cover">
+  <div class="top">
+    <span class="eyebrow">Návrh spolupráce · Státní oblastní archiv v Třeboni</span>
+    <h1>Matriky<span>@home</span></h1>
+    <p class="kicker">Matriky jako text</p>
+    <p class="lead">Jak z dnešní vlny badatelů s umělou inteligencí, která archivy spíš zatěžuje, udělat výhodu pro archiv, badatele i vědu.</p>
+  </div>
+  <div class="visual">
+    <svg viewBox="0 0 700 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Snímek matriky se mění na řádky textu">
+      <!-- snímek matriky -->
+      <rect x="10" y="20" width="250" height="260" rx="6" fill="#e9e1cc"/>
+      <rect x="10" y="20" width="250" height="260" rx="6" fill="none" stroke="#c9b98f" stroke-width="2"/>
+      <line x1="10" y1="62" x2="260" y2="62" stroke="#b9a676" stroke-width="1.5"/>
+      <line x1="70" y1="20" x2="70" y2="280" stroke="#b9a676" stroke-width="1"/>
+      <line x1="150" y1="20" x2="150" y2="280" stroke="#b9a676" stroke-width="1"/>
+      <g fill="none" stroke="#4a3a22" stroke-width="2" stroke-linecap="round">
+        <path d="M22 42 q8 -10 16 0 t16 0"/>
+        <path d="M84 42 q10 -12 20 0 t20 0 t18 0"/>
+        <path d="M162 42 q10 -10 20 0 t20 0 t20 0 t20 0"/>
+        <path d="M22 88 q6 -8 12 0 t12 0"/><path d="M84 88 q8 -12 16 2 t16 -2 t16 0 t14 2"/><path d="M162 88 q8 -10 16 0 t16 0 t16 2 t18 -2 t12 0"/>
+        <path d="M22 128 q6 -8 12 0 t12 0"/><path d="M84 128 q8 -10 16 0 t16 0 t14 0"/><path d="M162 128 q8 -12 16 2 t16 -2 t16 0 t16 0"/>
+        <path d="M22 168 q6 -8 12 0 t12 0"/><path d="M84 168 q8 -10 16 2 t16 -2 t16 0 t16 0"/><path d="M162 168 q8 -10 16 0 t16 0 t16 0"/>
+        <path d="M22 208 q6 -8 12 0 t12 0"/><path d="M84 208 q8 -12 16 0 t16 0"/><path d="M162 208 q8 -10 16 2 t16 -2 t16 0 t16 0 t12 0"/>
+        <path d="M22 248 q6 -8 12 0 t12 0"/><path d="M84 248 q8 -10 16 0 t16 2 t16 -2"/><path d="M162 248 q8 -12 16 0 t16 0 t16 0"/>
+      </g>
+      <!-- šipka -->
+      <g stroke="#e3b75a" stroke-width="3" fill="none" stroke-linecap="round">
+        <path d="M290 150 H392"/><path d="M378 136 L394 150 L378 164"/>
+      </g>
+      <text x="341" y="132" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="12" fill="#9fd0d6">přečíst</text>
+      <text x="341" y="180" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="12" fill="#9fd0d6">dvakrát</text>
+      <!-- text -->
+      <g font-family="IBM Plex Mono, monospace" font-size="13" style="white-space:pre" xml:space="preserve">
+        <rect x="420" y="20" width="270" height="260" rx="6" fill="#0c2c34" stroke="#2c7a86" stroke-width="2"/>
+        <text x="436" y="50" fill="#9fd0d6">datum    dům   jméno</text>
+        <line x1="420" y1="62" x2="690" y2="62" stroke="#2c7a86" stroke-width="1"/>
+        <text x="436" y="94" fill="#ffffff">1843-03-12  17  Jan</text>
+        <text x="436" y="112" fill="#8fb3b4" font-size="11">  otec Václav Novák, chalupník</text>
+        <text x="436" y="148" fill="#ffffff">1843-03-19   4  Marie</text>
+        <text x="436" y="166" fill="#8fb3b4" font-size="11">  otec Josef Dvořák, sedlák</text>
+        <text x="436" y="202" fill="#ffffff">1843-04-02  21  Anna</text>
+        <text x="436" y="220" fill="#8fb3b4" font-size="11">  otec Jakub Šimek, domkář</text>
+        <text x="436" y="262" fill="#e3b75a" font-size="11">✓ ověřeno · odkaz na snímek</text>
+      </g>
+      <text x="690" y="298" text-anchor="end" font-family="IBM Plex Mono, monospace" font-size="10" fill="#6f9a9c">ukázka, vymyšlené údaje</text>
+    </svg>
+  </div>
+  <div class="bottom">
+    <div><b>Kdo návrh předkládá</b>Jan Hnízdil, badatel a uživatel nástroje rodokmen, spolu s komunitou kolem tohoto nástroje.</div>
+    <div><b>Co navrhujeme</b>Malý pilot: jedna farnost nebo jeden fond, převod do textu bez nákladů pro archiv a pod jeho kontrolou.</div>
+  </div>
+</section>
+
+<!-- 2. Situace -->
+<section class="page">
+  <div class="head">
+    <span class="eyebrow">01 · Výchozí situace</span>
+    <h2>Rozumíme, v jaké situaci jste</h2>
+    <p class="lead">Za poslední měsíce výrazně přibylo lidí, kteří hledají předky s pomocí umělé inteligence. Archivům to zatím přineslo hlavně víc práce a víc starostí, ne úlevu.</p>
+  </div>
+  <div class="grid2">
+    <div class="card"><span class="k">Servery</span><h3>Víc provozu</h3><p>Nástroje stahují snímky ve velkém a často opakovaně tytéž stránky, protože každý badatel začíná od nuly.</p></div>
+    <div class="card"><span class="k">Badatelna</span><h3>Víc dotazů a rešerší</h3><p>Kdo se s AI dostane dál, obrací se pak častěji na archiv s objednávkou nebo dotazem.</p></div>
+    <div class="card"><span class="k">Licence</span><h3>Smluvní podmínky</h3><p>Snímky jsou poskytnuty jen k prohlížení v DigiArchivu a licence vychází i ze smluv s digitalizátory.</p></div>
+    <div class="card"><span class="k">Kapacity</span><h3>Technika a rozpočet</h3><p>Archiv plní především zákonné úkoly a nemá volné lidi ani peníze na budování nových služeb.</p></div>
+  </div>
+  <div class="note">
+    <h3>Vaše podmínky respektujeme</h3>
+    <p>Na vaši žádost ze 4. 11. 2026 autor nástroje rodokmen odstranil skript pro stahování snímků z DigiArchivu. Obcházení ochran nepodporujeme a hledáme řešení v souladu s vašimi podmínkami.</p>
+  </div>
+  <div class="big">
+    <h3>Poptávka ale nezmizí</h3>
+    <p>Lidí, kteří čtou matriky s pomocí AI, bude přibývat. Dokud k údajům nepovede <b>legální a pohodlná cesta</b>, budou vznikat neoficiální nástroje a s nimi zátěž i spory. Navrhujeme cestu, kterou jste sami naznačili: <b>řízený přístup a jasnou licenci</b>. Zátěž, která dnes archiv obtěžuje, se tak může proměnit v práci odvedenou pro archiv.</p>
+  </div>
+  <div class="folio"><span>Matriky@home · návrh pro SOA v Třeboni</span><span>2</span></div>
+</section>
+
+<!-- 3. Myšlenka -->
+<section class="page">
+  <div class="head">
+    <span class="eyebrow">02 · Myšlenka</span>
+    <h2>Každou stránku přečíst jednou, pro všechny</h2>
+    <p class="lead">Inspirací a odtud i název je projekt SETI@home, ve kterém dobrovolníci zpracovávali vědecká data na svých počítačích. U matrik by dobrovolní badatelé se svými nástroji AI převedli snímky do textu a archiv by získal hotový, ověřený přepis.</p>
+  </div>
+  <div class="flow">
+    <div class="step"><span class="badge">1</span><span class="who">Archiv</span><h3>Vybere pilot</h3><p>Určí soubor snímků, třeba jednu farnost, a podmínky, za kterých se smí zpracovat.</p></div>
+    <div class="step"><span class="badge">2</span><span class="who">Komunita</span><h3>Přepisuje</h3><p>Každý snímek přečtou nezávisle dva přispěvatelé, nejlépe různými nástroji.</p></div>
+    <div class="step"><span class="badge">3</span><span class="who">Zkušení čtenáři</span><h3>Ověří</h3><p>Shodná čtení projdou, rozpory rozhodne člověk nad originálem. Archiv může kontrolovat vzorky.</p></div>
+    <div class="step"><span class="badge">4</span><span class="who">Archiv</span><h3>Zveřejní</h3><p>Ověřený text dostane archiv. Hledání podle jména, odkaz vždy na snímek v DigiArchivu.</p></div>
+  </div>
+  <div class="compare">
+    <div class="card">
+      <span class="tag today">Dnes</span>
+      <div class="dots" id="d1"></div>
+      <p><b>100 stažení</b> jedné stránky matriky, kterou hledá sto badatelů. Každý ji čte znovu a výsledek zůstane v jeho soukromém rodokmenu.</p>
+    </div>
+    <div class="card">
+      <span class="tag hub">Po zavedení</span>
+      <div class="dots few" id="d2"></div>
+      <p><b>2 stažení</b>, jedno pro každé nezávislé čtení. Ostatní badatelé najdou zápis v textu a originál si vyžádají, jen když ho opravdu potřebují.</p>
+    </div>
+  </div>
+  <div class="note">
+    <h3>Snímky se nezveřejňují</h3>
+    <p>Ven jde jen přepsaný text s odkazem na konkrétní snímek v DigiArchivu. Originál dostane jen badatel, který si ho cíleně vyžádá, s limitem a v rozsahu, který archiv povolí.</p>
+  </div>
+  <div class="folio"><span>Matriky@home · návrh pro SOA v Třeboni</span><span>3</span></div>
+</section>
+
+<!-- 4. Technika -->
+<section class="page tech">
+  <div class="head">
+    <span class="eyebrow">03 · Jak to funguje · volná kapacita</span>
+    <h2>Případ 1: agent si o práci řekne sám</h2>
+    <p class="lead">Předplatné AI má limity, které se pravidelně obnovují. Když badatel kapacitu sám nevyužije, jeho agent se ohlásí hubu a převezme kus práce. Podobně jako SETI@home využíval nevyužitý výkon počítačů.</p>
+  </div>
+  <div class="seq">
+    <svg viewBox="0 0 700 372" xmlns="http://www.w3.org/2000/svg" font-family="Literata, Georgia, serif" role="img" aria-label="Výměna zpráv mezi agenty, hubem a ověřovatelem">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#2c7a86"/></marker>
+        <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#a97a1f"/></marker>
+      </defs>
+      <!-- hlavičky -->
+      <g font-family="Bricolage Grotesque, Segoe UI, sans-serif" font-weight="700" font-size="13" text-anchor="middle">
+        <rect x="20" y="4" width="140" height="34" rx="6" fill="#113a44"/><text x="90" y="26" fill="#ffffff">Agent badatele A</text>
+        <rect x="250" y="4" width="140" height="34" rx="6" fill="#2c7a86"/><text x="320" y="26" fill="#ffffff">Hub</text>
+        <rect x="440" y="4" width="140" height="34" rx="6" fill="#113a44"/><text x="510" y="26" fill="#ffffff">Agent badatele B</text>
+        <rect x="606" y="4" width="90" height="34" rx="6" fill="#a97a1f"/><text x="651" y="26" fill="#ffffff">Ověřovatel</text>
+      </g>
+      <!-- osy -->
+      <g stroke="#c9d3d1" stroke-width="1.5" stroke-dasharray="4 4">
+        <line x1="90" y1="38" x2="90" y2="368"/><line x1="320" y1="38" x2="320" y2="368"/>
+        <line x1="510" y1="38" x2="510" y2="368"/><line x1="651" y1="38" x2="651" y2="368"/>
+      </g>
+      <g font-size="11.5" fill="#17232a">
+        <!-- 1 -->
+        <line x1="92" y1="66" x2="316" y2="66" stroke="#2c7a86" stroke-width="2" marker-end="url(#ar)"/>
+        <text class="m" x="104" y="58"><tspan font-weight="600">1</tspan>  Mám volno, přidělte mi práci.</text>
+        <!-- 2 -->
+        <line x1="318" y1="104" x2="94" y2="104" stroke="#2c7a86" stroke-width="2" marker-end="url(#ar)"/>
+        <text class="m" x="104" y="96"><tspan font-weight="600">2</tspan>  Pracovní jednotka: popis a podepsaný odkaz.</text>
+        <text class="m" x="122" y="120" fill="#586770" font-size="10.5">Jednotka je rezervovaná na omezenou dobu.</text>
+        <!-- 3 -->
+        <rect x="30" y="134" width="120" height="44" rx="5" fill="#dcecee" stroke="#2c7a86"/>
+        <text x="90" y="152" text-anchor="middle" font-size="11"><tspan font-weight="600">3</tspan>  Stáhne a přečte</text>
+        <text x="90" y="168" text-anchor="middle" font-size="11">snímek, zapíše JSON</text>
+        <!-- 4 -->
+        <line x1="92" y1="200" x2="316" y2="200" stroke="#2c7a86" stroke-width="2" marker-end="url(#ar)"/>
+        <text class="m" x="104" y="192"><tspan font-weight="600">4</tspan>  Výsledek v JSON. Hub ho uloží.</text>
+        <!-- 5 -->
+        <line x1="322" y1="234" x2="506" y2="234" stroke="#2c7a86" stroke-width="2" marker-end="url(#ar)"/>
+        <text class="m" x="332" y="226"><tspan font-weight="600">5</tspan>  Stejná jednotka jinému agentovi</text>
+        <text class="m" x="350" y="250" fill="#586770" font-size="10.5">bez znalosti prvního čtení</text>
+        <!-- 6 -->
+        <line x1="508" y1="276" x2="324" y2="276" stroke="#2c7a86" stroke-width="2" marker-end="url(#ar)"/>
+        <text class="m" x="332" y="268"><tspan font-weight="600">6</tspan>  Druhý nezávislý výsledek</text>
+        <!-- 7 -->
+        <rect x="256" y="290" width="128" height="40" rx="5" fill="#dcecee" stroke="#2c7a86"/>
+        <text x="320" y="307" text-anchor="middle" font-size="11"><tspan font-weight="600">7</tspan>  Porovná obě</text>
+        <text x="320" y="322" text-anchor="middle" font-size="11">čtení</text>
+        <!-- 8 -->
+        <line x1="386" y1="352" x2="647" y2="352" stroke="#a97a1f" stroke-width="2" marker-end="url(#ar2)"/>
+        <text class="m" x="398" y="345"><tspan font-weight="600">8</tspan>  Jen rozpory, k rozhodnutí nad originálem</text>
+      </g>
+    </svg>
+  </div>
+  <div class="json2">
+    <div>
+      <span class="cap">2 · Hub posílá agentovi (vymyšlené údaje)</span>
+<pre>{
+  <span class="s">"jednotka"</span>: "trebon/N-sv7/snimek-045",
+  <span class="s">"odkaz"</span>: "…/045.jpg?podpis=…",
+  <span class="s">"archiv"</span>: "SOA v Třeboni",
+  <span class="s">"signatura"</span>: "matrika N, sv. 7",
+  <span class="s">"farnost"</span>: "Vesnice",
+  <span class="s">"roky"</span>: [1841, 1845],
+  <span class="s">"druh"</span>: "narození",
+  <span class="s">"jazyk"</span>: ["latina", "němčina"],
+  <span class="s">"rezervace_do"</span>: "2026-11-12 20:00"
+}</pre>
+    </div>
+    <div>
+      <span class="cap">4 · Agent vrací hubu (vymyšlené údaje)</span>
+<pre>{
+  <span class="s">"jednotka"</span>: "trebon/N-sv7/snimek-045",
+  <span class="s">"cetl"</span>: "model a verze nástroje",
+  <span class="s">"zapisy"</span>: [{
+    <span class="s">"datum"</span>: "1843-03-12",
+    <span class="s">"dum"</span>: 17,
+    <span class="s">"dite"</span>: { <span class="s">"doslovne"</span>: "Joannes",
+              <span class="s">"cesky"</span>: "Jan" },
+    <span class="s">"otec"</span>: { <span class="s">"doslovne"</span>: "Wenzl Nowak",
+              <span class="s">"cesky"</span>: "Václav Novák" },
+    <span class="s">"jistota"</span>: 0.86
+  }]
+}</pre>
+    </div>
+  </div>
+  <div class="note">
+    <h3>Co když agent práci nedokončí</h3>
+    <p>Rezervace i odkaz vyprší a hub jednotku přidělí jinému agentovi. Každý snímek se tak přečte dvakrát nezávisle, bez ohledu na to, kdo a kdy se zrovna připojí. Kdo opakovaně přepisy nevrací, další odkazy nedostane.</p>
+  </div>
+  <div class="folio"><span>Matriky@home · návrh pro SOA v Třeboni</span><span>4</span></div>
+</section>
+
+<!-- 5. Cílené hledání -->
+<section class="page tech">
+  <div class="head">
+    <span class="eyebrow">04 · Jak to funguje · cílené hledání</span>
+    <h2>Případ 2: badatel hledá konkrétní stránku</h2>
+    <p class="lead">Badatel často ví, kterou stránku matriky potřebuje. Hub mu vyhoví, ale odkaz na snímek nedá zadarmo: kdo ho dostane, vrátí přepis celé stránky. Stránka, kterou už někdo přečetl, se posílá jako text, originál jen na vyžádání.</p>
+  </div>
+  <div class="flowc">
+    <svg viewBox="0 0 700 470" xmlns="http://www.w3.org/2000/svg" font-family="Literata, Georgia, serif" role="img" aria-label="Rozhodování hubu při žádosti o konkrétní stránku">
+      <defs>
+        <marker id="fa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#586770"/></marker>
+      </defs>
+      <g stroke="#586770" stroke-width="2" fill="none" marker-end="url(#fa)">
+        <path d="M350 52 V78"/>
+        <path d="M230 125 H150 V198"/>
+        <path d="M470 125 H555 V198"/>
+        <path d="M555 270 V298"/>
+        <path d="M450 345 H304"/>
+        <path d="M555 390 V408"/>
+      </g>
+      <!-- start -->
+      <rect x="185" y="6" width="330" height="46" rx="6" fill="#113a44"/>
+      <text x="350" y="26" text-anchor="middle" fill="#ffffff" font-size="12.5" font-family="Bricolage Grotesque, Segoe UI, sans-serif" font-weight="700">Badatel žádá konkrétní stránku</text>
+      <text x="350" y="43" text-anchor="middle" fill="#bcd6d7" font-size="10.5">archiv, signatura, číslo snímku</text>
+      <!-- otázka 1 -->
+      <polygon points="350,80 470,125 350,170 230,125" fill="#ffffff" stroke="#2c7a86" stroke-width="2"/>
+      <text x="350" y="121" text-anchor="middle" font-size="11.5" fill="#17232a">Je stránka už</text>
+      <text x="350" y="137" text-anchor="middle" font-size="11.5" fill="#17232a">přečtená?</text>
+      <text x="190" y="116" text-anchor="middle" font-size="11" font-weight="600" fill="#2c7a86">ano</text>
+      <text x="512" y="116" text-anchor="middle" font-size="11" font-weight="600" fill="#a97a1f">ne</text>
+      <!-- ano: jen text -->
+      <rect x="20" y="200" width="260" height="74" rx="6" fill="#dcecee" stroke="#2c7a86"/>
+      <text x="34" y="222" font-size="12" font-weight="600" fill="#113a44" font-family="Bricolage Grotesque, Segoe UI, sans-serif">Hub pošle hotový text v JSON</text>
+      <text x="34" y="241" font-size="10.5" fill="#17232a">Originál k rodokmenu jen na vyžádání,</text>
+      <text x="34" y="258" font-size="10.5" fill="#17232a">cíleně a s denním limitem.</text>
+      <!-- ne: snímek s podmínkou -->
+      <rect x="420" y="200" width="270" height="70" rx="6" fill="#f3e9d2" stroke="#a97a1f"/>
+      <text x="434" y="222" font-size="12" font-weight="600" fill="#5e430c" font-family="Bricolage Grotesque, Segoe UI, sans-serif">Hub pošle podepsaný odkaz na snímek</text>
+      <text x="434" y="241" font-size="10.5" fill="#17232a">Podmínka: vrátit přepis celé stránky,</text>
+      <text x="434" y="258" font-size="10.5" fill="#17232a">ne jen hledaného zápisu.</text>
+      <!-- otázka 2 -->
+      <polygon points="555,300 660,345 555,390 450,345" fill="#ffffff" stroke="#a97a1f" stroke-width="2"/>
+      <text x="555" y="341" text-anchor="middle" font-size="11.5" fill="#17232a">Vrátil přepis</text>
+      <text x="555" y="357" text-anchor="middle" font-size="11.5" fill="#17232a">celé stránky?</text>
+      <text x="418" y="336" text-anchor="middle" font-size="11" font-weight="600" fill="#a97a1f">ne</text>
+      <text x="572" y="404" font-size="11" font-weight="600" fill="#2c7a86">ano</text>
+      <!-- ne: bez dalšího přístupu -->
+      <rect x="40" y="318" width="262" height="56" rx="6" fill="#ffffff" stroke="#a97a1f" stroke-dasharray="5 4"/>
+      <text x="54" y="340" font-size="12" font-weight="600" fill="#5e430c" font-family="Bricolage Grotesque, Segoe UI, sans-serif">Další požadavky se odmítnou</text>
+      <text x="54" y="359" font-size="10.5" fill="#17232a">Hub tomuto uživateli přestane vyhovovat.</text>
+      <!-- ano: první čtení -->
+      <rect x="400" y="410" width="290" height="56" rx="6" fill="#dcecee" stroke="#2c7a86"/>
+      <text x="414" y="432" font-size="12" font-weight="600" fill="#113a44" font-family="Bricolage Grotesque, Segoe UI, sans-serif">Uloží se jako první čtení</text>
+      <text x="414" y="451" font-size="10.5" fill="#17232a">Druhé čtení hub přidělí jinému agentovi.</text>
+    </svg>
+  </div>
+  <div class="trio">
+    <div class="card"><span class="k">Pro archiv</span><h3>Méně stahování</h3><p>Pro přepis se snímek stáhne nejvýš dvakrát. Další zájemci dostanou text, originál jen cíleně.</p></div>
+    <div class="card"><span class="k">Pro badatele</span><h3>Text hned</h3><p>Pokud stránku už někdo přečetl, dostane hotový přepis okamžitě a bez čekání.</p></div>
+    <div class="card"><span class="k">Férová výměna</span><h3>Kdo si bere, vrací</h3><p>Za snímek přepis celé stránky. Index tak roste s každým hledáním.</p></div>
+  </div>
+  <div class="note">
+    <h3>I originál, ale cíleně</h3>
+    <p>Badatel může i u přečtené stránky požádat o originální snímek, třeba jako doklad do rodokmenu. Hub mu k němu vydá podepsaný odkaz s denním limitem. Hromadné procházení snímků tím ale odpadá: badatel nejdřív v textu najde, na kterých stránkách jeho předci jsou, a originál si vyžádá jen k nim. I tak to znamená zlomek dnešního stahování.</p>
+  </div>
+  <div class="folio"><span>Matriky@home · návrh pro SOA v Třeboni</span><span>5</span></div>
+</section>
+
+<!-- 4. Přínosy -->
+<section class="page">
+  <div class="head">
+    <span class="eyebrow">05 · Přínosy</span>
+    <h2>Co z toho budou mít jednotlivé strany</h2>
+  </div>
+  <div class="grid3">
+    <div class="bcol arch">
+      <h3>Archiv<span class="sub">SOA v Třeboni</span></h3>
+      <ul>
+        <li><b>Méně zátěže serverů</b>Místo listování snímky se hledá v textu. Snímek se otevře, až když je jasné, že je ten pravý.</li>
+        <li><b>Konec důvodů pro neoficiální nástroje</b>Kdo má legální cestu k údajům, nepotřebuje obcházet ochrany.</li>
+        <li><b>Portál pro lidi</b>Proti robotům ho můžete chránit naplno, stroje mají vlastní vstup.</li>
+        <li><b>Hledání podle jména v DigiArchivu</b>Přepis bez vlastních nákladů. Výpočet i ověřování zajistí komunita.</li>
+        <li><b>Méně rutinních dotazů</b>Badatelna se může věnovat složitějším případům.</li>
+        <li><b>Plná kontrola</b>Rozsah, podmínky a licenci určuje archiv. Spolupráci může kdykoli ukončit.</li>
+        <li><b>Průkopnický projekt</b>Archiv se může prezentovat moderním přístupem a zapojit se do výzkumných projektů s vlastním financováním.</li>
+      </ul>
+    </div>
+    <div class="bcol gen">
+      <h3>Badatelé<span class="sub">genealogové</span></h3>
+      <ul>
+        <li><b>Hledání místo listování</b>Předka najdou podle jména a obce, ne procházením stovek snímků.</li>
+        <li><b>Méně omezení</b>Když se většina dotazů vyřídí z textu, archiv nemusí tolik omezovat přístup.</li>
+        <li><b>Ověřený přepis</b>Každý zápis má úroveň jistoty a odkaz na originál.</li>
+        <li><b>Souvislosti</b>Sourozenci, kmotři a stěhování i v sousedních farnostech.</li>
+      </ul>
+    </div>
+    <div class="bcol pub">
+      <h3>Věda a veřejnost<span class="sub">všichni</span></h3>
+      <ul>
+        <li><b>Otevřená data</b>Historie, demografie, sociologie, epidemiologie, jazykověda, onomastika.</li>
+        <li><b>Témata pro studenty</b>Diplomové práce napříč humanitními a technickými obory.</li>
+        <li><b>Trvalost</b>Práce, která dnes končí v soukromých rodokmenech, zůstane uložená a dohledatelná.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="note">
+    <h3>Z přítěže výhoda</h3>
+    <p>Stejní lidé a stejná výpočetní síla, které dnes archiv zatěžují, by pracovali pro archiv. Místo tisíců neřízených stažení by archiv dostal hotový, ověřený a prohledávatelný přepis svých matrik.</p>
+  </div>
+  <div class="folio"><span>Matriky@home · návrh pro SOA v Třeboni</span><span>6</span></div>
+</section>
+
+<!-- 5. Co potřebujeme -->
+<section class="page">
+  <div class="head">
+    <span class="eyebrow">06 · Požadavky</span>
+    <h2>Co od vás potřebujeme a co ne</h2>
+    <p class="lead">Požadavky na archiv jsou omezené na nezbytné minimum, ostatní zajistí komunita.</p>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <span class="k">Potřebujeme</span>
+      <ul class="list yes">
+        <li>Souhlas s pilotem a jednu kontaktní osobu.</li>
+        <li>Souhlas se strojovým přístupem k pilotním svazkům přes podepsané odkazy hubu (podrobnosti na dalších stranách).</li>
+        <li>Souhlas se strojovým přepisem a se zveřejněním výsledného textu.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="k">Nepotřebujeme</span>
+      <ul class="list no">
+        <li>Žádný vlastní vývoj. Ověřování odkazů je nastavení serveru a pomůžeme s ním.</li>
+        <li>Žádné náklady na přepis a ověřování. U dvou ze tří variant ani na provoz.</li>
+        <li>Žádné předávání dat ani kopií snímků.</li>
+        <li>Žádné zveřejnění snímků mimo DigiArchiv.</li>
+        <li>Žádný závazek do budoucna. Po pilotu se rozhodnete.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="note">
+    <h3>Licence a smlouvy s digitalizátory</h3>
+    <p>Ve všech variantách se snímky nezveřejňují, ven jde jen přepsaný text s odkazem do DigiArchivu. Pokud smlouvy s digitalizátory něco nedovolí, pilot může začít u fondů, které archiv digitalizoval sám, nebo u jiného druhu písemností, kde to licence umožní.</p>
+  </div>
+  <div class="big">
+    <h3>Co přesně žádáme</h3>
+    <p>Přepis zachycuje údaje ze zápisů, ne snímky samotné. Pro pilot žádáme o souhlas se strojovým přístupem k vybraným svazkům přes podepsané odkazy hubu a o dohodu, jak bude výsledný text zveřejněn, s uvedením archivu jako zdroje. Pokud to vaše podmínky dovolí, hub by badatelům zprostředkoval i originál jednotlivých stránek pro jejich rodokmen, s denním limitem. Formu souhlasu lze přizpůsobit vašim zvyklostem.</p>
+  </div>
+  <div class="folio"><span>Matriky@home · návrh pro SOA v Třeboni</span><span>7</span></div>
+</section>
+
+<!-- 8. Dva vstupy -->
+<section class="page">
+  <div class="head">
+    <span class="eyebrow">07 · Dva vstupy do archivu</span>
+    <h2>Portál pro lidi, hub pro stroje</h2>
+    <p class="lead">Archiv si dál nechá svůj portál a prohlížeč matrik. Ten ale může být určený hlavně lidem. Pro stroje vznikne samostatný řízený vstup přes hub, který archivu vrací přepisy. Člověk ho může používat také, pokud mu tak vyhovuje víc.</p>
+  </div>
+  <div class="lanes">
+    <svg viewBox="0 0 700 262" xmlns="http://www.w3.org/2000/svg" font-family="Literata, Georgia, serif" role="img" aria-label="Lidé chodí přes portál, stroje přes hub s podepsanými odkazy">
+      <defs>
+        <marker id="la" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#2c7a86"/></marker>
+        <marker id="lb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#a97a1f"/></marker>
+        <marker id="lc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#586770"/></marker>
+      </defs>
+      <g font-family="Bricolage Grotesque, Segoe UI, sans-serif" font-weight="700" text-anchor="middle">
+        <rect x="10" y="20" width="150" height="52" rx="6" fill="#ffffff" stroke="#586770" stroke-width="1.5"/>
+        <text x="85" y="51" font-size="13" fill="#17232a">Lidé</text>
+        <rect x="10" y="160" width="150" height="52" rx="6" fill="#ffffff" stroke="#2c7a86" stroke-width="1.5"/>
+        <text x="85" y="184" font-size="12.5" fill="#17232a">AI agenti</text>
+        <text x="85" y="200" font-size="10.5" font-weight="400" fill="#586770" font-family="Literata, Georgia, serif">badatelů</text>
+        <rect x="265" y="20" width="175" height="52" rx="6" fill="#586770"/>
+        <text x="352" y="43" font-size="12.5" fill="#ffffff">Portál DigiArchiv</text>
+        <text x="352" y="60" font-size="10" font-weight="400" fill="#e6ecea" font-family="Literata, Georgia, serif">chráněný proti robotům</text>
+        <rect x="265" y="160" width="175" height="52" rx="6" fill="#2c7a86"/>
+        <text x="352" y="183" font-size="12.5" fill="#ffffff">Hub</text>
+        <text x="352" y="200" font-size="10" font-weight="400" fill="#dcecee" font-family="Literata, Georgia, serif">podepsané odkazy, ověřování</text>
+        <rect x="545" y="20" width="145" height="192" rx="6" fill="#113a44"/>
+        <text x="617" y="108" font-size="14" fill="#ffffff">Archiv</text>
+        <text x="617" y="127" font-size="10" font-weight="400" fill="#bcd6d7" font-family="Literata, Georgia, serif">snímky a přepisy</text>
+      </g>
+      <g fill="none" stroke-width="2">
+        <path d="M162 46 H261" stroke="#586770" marker-end="url(#lc)"/>
+        <path d="M442 46 H541" stroke="#586770" marker-end="url(#lc)"/>
+        <path d="M162 175 H261" stroke="#2c7a86" marker-end="url(#la)"/>
+        <path d="M263 198 H164" stroke="#2c7a86" marker-end="url(#la)"/>
+        <path d="M442 186 H541" stroke="#a97a1f" marker-end="url(#lb)"/>
+        <path d="M85 214 V246 H617 V216" stroke="#2c7a86" stroke-dasharray="6 4" marker-end="url(#la)"/>
+      </g>
+      <g font-size="10.5" fill="#17232a" text-anchor="middle">
+        <text x="212" y="38">prohlížení</text>
+        <text x="492" y="38">jako dnes</text>
+        <text x="212" y="168">žádost</text>
+        <text x="212" y="214" fill="#586770">odkaz</text>
+        <text x="492" y="178" fill="#7d5a14">ověřené přepisy</text>
+        <text x="350" y="240" fill="#113a44">stažení snímku s podepsaným odkazem</text>
+      </g>
+    </svg>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <span class="k">Portál pro lidi</span>
+      <ul class="list yes">
+        <li>Prohlížení matrik zůstává jako dnes.</li>
+        <li>Proti robotům a skriptům ho můžete chránit naplno.</li>
+        <li>Lidé nesoupeří o výkon se stahujícími programy.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="k">Hub pro stroje</span>
+      <ul class="list yes">
+        <li>Každé stažení je prokazatelně součástí projektu.</li>
+        <li>Za každý stažený snímek se archivu vrací přepis.</li>
+        <li>Rozsah a tempo určuje archiv.</li>
+        <li>Může ho používat i člověk, pokud chce.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="note">
+    <h3>Proč dva vstupy</h3>
+    <p>Dnes se lidé i skripty tlačí v jednom prohlížeči a archiv se může bránit jen plošnými omezeními, která dopadají na všechny. Se dvěma vstupy může skripty na portálu blokovat, a stroje přitom mají legální cestu, takže nemají důvod ochrany obcházet.</p>
+  </div>
+  <div class="folio"><span>Matriky@home · návrh pro SOA v Třeboni</span><span>8</span></div>
+</section>
+
+<!-- 9. Podepsané odkazy -->
+<section class="page sig">
+  <div class="head">
+    <span class="eyebrow">08 · Podepsané odkazy</span>
+    <h2>Jak archiv pozná zapojeného přispěvatele</h2>
+    <p class="lead">Hub snímky nepřenáší ani neukládá. Přispěvateli vydá podepsaný odkaz do archivu a snímek si přispěvatel stáhne přímo od vás. Archiv tak u každého stažení ví, že patří k projektu, a hub ví, kdo za který snímek dluží přepis.</p>
+  </div>
+  <div class="flow">
+    <div class="step"><span class="badge">1</span><span class="who">Hub</span><h3>Vydá odkaz</h3><p>Platí jen pro konkrétní snímek a jen krátce, nese pseudonym přispěvatele a je podepsaný klíčem, který zná jen hub a archiv.</p></div>
+    <div class="step"><span class="badge">2</span><span class="who">Archiv</span><h3>Ověří podpis</h3><p>Sám, bez dotazu na hub. Neplatný nebo prošlý odkaz odmítne. Stažení bez odkazu zůstávají v běžných limitech.</p></div>
+    <div class="step"><span class="badge">3</span><span class="who">Přispěvatel</span><h3>Vrátí přepis</h3><p>Snímek přečte a přepis pošle hubu. Kdo ho nevrátí, další odkaz nedostane.</p></div>
+    <div class="step"><span class="badge">4</span><span class="who">Hub</span><h3>Předá archivu</h3><p>Ověřené přepisy průběžně předává archivu. Každé stažení se archivu vrátí jako text.</p></div>
+  </div>
+  <div class="note">
+    <h3>Co to znamená pro váš server</h3>
+    <p>Ověřit podepsaný odkaz umějí běžné webové servery samy, například nginx modulem secure_link. Jde o nastavení, ne o vývoj, a rádi s ním pomůžeme. Pokud DigiArchiv běží na jiném řešení, najdeme obdobnou cestu.</p>
+  </div>
+  <div class="card">
+    <span class="k">Originál k rodokmenu</span>
+    <p>I k už přečtené stránce vydá hub badateli podepsaný odkaz na originál, cíleně a s denním limitem.</p>
+  </div>
+  <h3 style="font-size:13pt;color:var(--pond)">Když na serveru nastavit nic nejde</h3>
+  <div class="alt">
+    <div class="card"><h3>Hub z jedné povolené adresy</h3><p>Snímky stahuje jen hub v dohodnutém tempu a předává je přispěvatelům. Archiv povolí jedinou adresu a nic dalšího nenastavuje.</p></div>
+    <div class="card"><h3>Jednorázová kopie</h3><p>Archiv předá kopii pilotního souboru na úložiště hubu. DigiArchiv během pilotu nezatíží, po skončení se kopie smaže.</p></div>
+  </div>
+  <div class="folio"><span>Matriky@home · návrh pro SOA v Třeboni</span><span>9</span></div>
+</section>
+
+<!-- 6. Hostování -->
+<section class="page tight">
+  <div class="head">
+    <span class="eyebrow">09 · Hostování pilotu</span>
+    <h2>Kde by mohl běžet pilotní hub</h2>
+    <p class="lead">Hub je malá služba, která přiděluje práci, vydává podepsané odkazy a sbírá a porovnává přepisy. Pilot nevyžaduje výkonný server. Navrhujeme tři varianty.</p>
+  </div>
+  <div class="host">
+    <div class="card">
+      <span class="num">1</span>
+      <h3>Na serverech archivu</h3>
+      <span class="lbl">Jak by to fungovalo</span>
+      <p>Hub běží u vás vedle DigiArchivu. Software a návod dodáme, s instalací i provozem pomůžeme.</p>
+      <span class="lbl">Výhoda pro archiv</span>
+      <p>Hub i všechna data máte přímo u sebe a zcela pod kontrolou.</p>
+      <span class="lbl">Co to obnáší</span>
+      <p>Trochu výkonu a místa na vašem serveru, čas vašeho IT a schválení podle bezpečnostních pravidel.</p>
+    </div>
+    <div class="card">
+      <span class="num">2</span>
+      <h3>CESNET</h3>
+      <span class="lbl">Jak by to fungovalo</span>
+      <p>Hub běží na národní akademické infrastruktuře a vydává podepsané odkazy. CESNET oslovíme sami, případně s univerzitou.</p>
+      <span class="lbl">Výhoda pro archiv</span>
+      <p>Žádné náklady, jen nastavení ověřování odkazů. Spolehlivá veřejná infrastruktura s dlouhodobým provozem.</p>
+      <span class="lbl">Co to obnáší</span>
+      <p>Pomalejší rozjezd. Podmínky přístupu teprve zjistíme, nejspíš bude potřeba akademický partner.</p>
+    </div>
+    <div class="card">
+      <span class="num">3</span>
+      <h3>Komunitní server</h3>
+      <span class="lbl">Jak by to fungovalo</span>
+      <p>Komunita pronajme server v Česku a zaplatí ho ze svého, pro pilot řádově stovky korun měsíčně. Snímky přes něj nejdou.</p>
+      <span class="lbl">Výhoda pro archiv</span>
+      <p>Nejrychlejší start, žádné náklady, jen nastavení ověřování odkazů.</p>
+      <span class="lbl">Co to obnáší</span>
+      <p>Dlouhodobý provoz závisí na komunitě. Navrhujeme smlouvu s odpovědnou osobou a předání všech dat archivu při ukončení.</p>
+    </div>
+  </div>
+  <table class="cmp">
+    <thead><tr><th></th><th>1 · U vás</th><th>2 · CESNET</th><th>3 · Komunita</th></tr></thead>
+    <tbody>
+      <tr><td>Snímky na serveru hubu</td><td>u vás</td><td>žádné</td><td>žádné</td></tr>
+      <tr><td>Práce pro vaše IT</td><td>instalace, dohled, ověřování odkazů</td><td>nastavit ověřování odkazů</td><td>nastavit ověřování odkazů</td></tr>
+      <tr><td>Náklady pro archiv</td><td>výkon vašeho serveru</td><td>žádné</td><td>žádné</td></tr>
+      <tr><td>Přepisy pro archiv</td><td>přímo u vás</td><td>průběžně předávané</td><td>průběžně předávané</td></tr>
+      <tr><td>Rychlost spuštění</td><td>podle vašich kapacit</td><td>nejpomalejší</td><td>nejrychlejší</td></tr>
+      <tr><td>Dlouhodobý provoz</td><td>zajištěný archivem</td><td>zajištěný institucí</td><td>závisí na komunitě</td></tr>
+    </tbody>
+  </table>
+  <div class="ask">
+    <h3>Která varianta je pro vás schůdná?</h3>
+    <p>Uvítáme vaše stanovisko, které varianty přicházejí v úvahu a za jakých podmínek. Varianty lze i kombinovat, například pilot na komunitním serveru a dlouhodobý provoz u CESNET nebo u vás.</p>
+  </div>
+  <div class="folio"><span>Matriky@home · návrh pro SOA v Třeboni</span><span>10</span></div>
+</section>
+
+<!-- 6. Kvalita -->
+<section class="page roomy">
+  <div class="head">
+    <span class="eyebrow">10 · Kvalita a ochrana údajů</span>
+    <h2>Každý zápis nese úroveň jistoty</h2>
+    <p class="lead">AI čte staré písmo už velmi dobře, ale ne bezchybně. Proto se na výsledek nikdy nespoléháme po jednom čtení.</p>
+  </div>
+  <div class="levels">
+    <span class="lvl l1">přečteno strojově</span><span class="arrow">→</span>
+    <span class="lvl l2">shoda dvou čtení</span><span class="arrow">→</span>
+    <span class="lvl l3">ověřeno člověkem</span><span class="arrow">→</span>
+    <span class="lvl l4">potvrzeno archivem</span>
+  </div>
+  <div class="checks">
+    <div><b>Dvě nezávislá čtení</b><p>Každý snímek čtou dva přispěvatelé, kteří nevidí výsledek toho druhého.</p></div>
+    <div><b>Kontrolní snímky</b><p>Mezi úkoly se vmíchají snímky se známým správným přepisem. Nespolehlivé čtení se tak rychle odhalí.</p></div>
+    <div><b>Kdo a čím četl</b><p>U každého čtení je uvedený přispěvatel a nástroj, aby šlo slabší čtení najít a zopakovat.</p></div>
+    <div><b>Odkaz na originál</b><p>Každý zápis vede na konkrétní snímek v DigiArchivu. Přepis snímek nenahrazuje.</p></div>
+    <div><b>Osobní údaje</b><p>Jen zápisy po uplynutí lhůt podle zákona o matrikách: narození 100 let, sňatky a úmrtí 75 let.</p></div>
+    <div><b>Souhlas archivu</b><p>Nic se nezveřejní bez vašeho souhlasu. Archiv může výsledky kdykoli vzorkovat.</p></div>
+  </div>
+  <div>
+    <span class="eyebrow" style="color:var(--muted)">Ukázka jednoho přepsaného zápisu (vymyšlené údaje)</span>
+<pre><span class="s">snímek</span>     DigiArchiv SOA Třeboň, matrika N, sv. 7, snímek 45
+<span class="s">datum</span>      12. 3. 1843          <span class="s">dům</span>  Vesnice č. 17
+<span class="s">dítě</span>       Joannes  →  Jan
+<span class="s">otec</span>       Wenzl Nowak, Häusler  →  Václav Novák, chalupník
+<span class="s">matka</span>      Anna, dcera Josefa Svobody
+<span class="s">jistota</span>    shoda dvou čtení      <span class="s">četli</span>  2 přispěvatelé, 2 různé nástroje</pre>
+  </div>
+  <div class="folio"><span>Matriky@home · návrh pro SOA v Třeboni</span><span>11</span></div>
+</section>
+
+<!-- 7. Pilot -->
+<section class="page">
+  <div class="head">
+    <span class="eyebrow">11 · Pilot</span>
+    <h2>Začít malým a změřit výsledek</h2>
+    <p class="lead">Navrhujeme pilot v rozsahu jedné farnosti nebo jednoho menšího fondu, řádově stovky až nízké tisíce snímků. Délku jednotlivých kroků navrhneme podle zvoleného rozsahu.</p>
+  </div>
+  <div class="phases">
+    <div class="phase"><span class="when">Krok 1 · Dohoda</span><h3>Rozsah a podmínky</h3><p>Výběr souboru, podoba souhlasu, způsob přístupu ke snímkům, místo běhu hubu a kontaktní osoby na obou stranách.</p></div>
+    <div class="phase"><span class="when">Krok 2 · Příprava</span><h3>Formát a kontrolní snímky</h3><p>Společný formát dat, sada kontrolních snímků s ověřeným přepisem, spuštění hubu a nastavení podepsaných odkazů.</p></div>
+    <div class="phase"><span class="when">Krok 3 · Zpracování</span><h3>Dvojí čtení a ověření</h3><p>Přispěvatelé přepisují, zkušení čtenáři rozhodují rozpory, archiv průběžně vidí stav.</p></div>
+    <div class="phase"><span class="when">Krok 4 · Vyhodnocení</span><h3>Co to přineslo</h3><p>Přesnost přepisu, náklady na jeden snímek, úspora provozu a zkušenost archivu. Společné rozhodnutí, zda a jak pokračovat.</p></div>
+  </div>
+  <div class="card">
+    <span class="k">Možní partneři (zatím neoslovení)</span>
+    <div class="partners">
+      <div><b>CESNET</b><span>Úložiště a dlouhodobý provoz, případně výzkumný projekt.</span></div>
+      <div><b>FIT VUT v Brně</b><span>Tým nástroje PERO OCR na čtení historických rukopisů.</span></div>
+      <div><b>Genealogické společnosti</b><span>Zkušení čtenáři pro ověřování sporných zápisů.</span></div>
+      <div><b>Projekt matriky-index</b><span>Existující komunitní formát pro přečtené zápisy.</span></div>
+    </div>
+  </div>
+  <div class="note">
+    <h3>Navazuje na tradici archivu</h3>
+    <p>SOA v Třeboni už v roce 2007 otevřel cestu digitalizaci matrik ve spolupráci s externím partnerem. Tento návrh je jeho domácí a nekomerční pokračování: z digitalizovaných snímků udělat prohledávatelný text, který zůstane archivu.</p>
+  </div>
+  <div class="folio"><span>Matriky@home · návrh pro SOA v Třeboni</span><span>12</span></div>
+</section>
+
+<!-- 8. Nabídka -->
+<section class="page roomy">
+  <div class="head">
+    <span class="eyebrow">12 · Nabídka</span>
+    <h2>Kdo za návrhem stojí a co nabízíme</h2>
+  </div>
+  <div class="offer">
+    <h3>Rádi pomůžeme s realizací</h3>
+    <p>Jsem připraven pomoci s přípravou i průběhem pilotu, technicky i organizačně. Kolem nástroje rodokmen se navíc vytvořila komunita lidí, kteří umí s AI číst staré matriky a chtějí, aby jejich práce měla smysl i pro ostatní. Jsme přesvědčeni, že dnešní AI vlnu lze z přítěže proměnit v ohromnou výhodu pro archiv.</p>
+  </div>
+  <div class="stats">
+    <div class="stat"><span class="n">640+</span><span class="t">lidí sleduje nástroj rodokmen na GitHubu (listopad 2026)</span></div>
+    <div class="stat"><span class="n">160+</span><span class="t">podnětů a zkušeností z praxe sdílených veřejně</span></div>
+    <div class="stat"><span class="n">desítky</span><span class="t">přispěvatelů s opravami a postupy pro archivy</span></div>
+  </div>
+  <div class="contact">
+    <div class="card">
+      <span class="k">Kontakt</span>
+      <b>Jan Hnízdil</b>
+      <p class="mono">hnizdiljan@gmail.com</p>
+    </div>
+    <div class="card">
+      <span class="k">Veřejná diskuse o návrhu</span>
+      <b>Nástroj rodokmen, issue 166</b>
+      <p class="mono">github.com/sarsonj/rodokmen-skill/issues/166</p>
+    </div>
+  </div>
+  <div class="note end">
+    <h3>Další krok</h3>
+    <p>Uvítáme schůzku nebo hovor, na kterém návrh představíme a probereme vaše podmínky a případné obavy. Podle nich pilot upravíme.</p>
+  </div>
+  <div class="folio"><span>Matriky@home · návrh pro SOA v Třeboni</span><span>13</span></div>
+</section>
+
+<script>
+(function () {
+  var a = '', b = '';
+  for (var i = 0; i < 100; i++) { a += '<i></i>'; b += i < 2 ? '<i class="on"></i>' : '<i></i>'; }
+  document.getElementById('d1').innerHTML = a;
+  document.getElementById('d2').innerHTML = b;
+})();
+</script>
+</body>
+</html>
